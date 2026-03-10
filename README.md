@@ -1,1 +1,92 @@
-# harf-game
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>شاشة العرض - الربط الذكي</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --orange: #ff8c00; --green: #00a844; --bg: #121212; }
+        body { background: var(--bg); color: white; margin: 0; font-family: 'Cairo', sans-serif; overflow: hidden; }
+        
+        /* منطقة الربط */
+        #connection-panel {
+            position: fixed; top: 10px; left: 10px; background: rgba(255,255,255,0.1);
+            padding: 15px; border-radius: 12px; z-index: 1000; text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        #qrcode { background: white; padding: 5px; margin-bottom: 10px; display: inline-block; }
+        .copy-btn { background: var(--orange); border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+
+        /* باقي تنسيقات اللعبة السابقة */
+        #question-display { height: 100px; background: rgba(255,255,255,0.05); display: flex; justify-content: center; align-items: center; font-size: 2.2rem; border-bottom: 4px solid #333; }
+        .board-container { position: relative; padding: 40px; display: flex; justify-content: center; border: 15px solid #333; }
+        .row { display: flex; margin-bottom: -28px; }
+        .row:nth-child(even) { transform: translateX(55px); }
+        .hex { width: 100px; height: 110px; background: #fff; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); display: flex; justify-content: center; align-items: center; font-size: 2.5rem; color: #333; margin: 5px; transition: 0.3s; }
+        .highlight { border: 5px solid yellow; box-shadow: 0 0 20px yellow; animation: pulse 1s infinite; z-index: 10; }
+        .active-orange { background: var(--orange) !important; color: white; }
+        .active-green { background: var(--green) !important; color: white; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+    <div id="connection-panel">
+        <div id="qrcode"></div>
+        <div style="font-size: 0.9rem; margin-bottom: 5px;">ID: <span id="my-id">...</span></div>
+        <button class="copy-btn" onclick="copyID()">نسخ الـ ID</button>
+    </div>
+
+    <div id="question-display">انتظار المضيف...</div>
+    <div class="board-container"><div id="grid"></div></div>
+
+<script>
+    const letters = ['ق','ص','و','د','ب','ح','ي','ض','هـ','ث','م','ز','ش','ط','ك','أ','ر','س','ظ','ث','ج','ع','هـ','غ','ذ'];
+    const grid = document.getElementById('grid');
+    const peer = new Peer();
+
+    // إنشاء الشبكة
+    for (let i = 0; i < 5; i++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        for (let j = 0; j < 5; j++) {
+            const idx = (i * 5) + j;
+            const h = document.createElement('div');
+            h.className = 'hex'; h.id = 'hex-' + idx; h.innerText = letters[idx];
+            row.appendChild(h);
+        }
+        grid.appendChild(row);
+    }
+
+    peer.on('open', id => {
+        document.getElementById('my-id').innerText = id;
+        // إنشاء رابط المضيف تلقائياً مع الـ ID
+        const hostUrl = window.location.href.replace('tv.html', 'host.html') + '?join=' + id;
+        new QRCode(document.getElementById("qrcode"), { text: hostUrl, width: 100, height: 100 });
+    });
+
+    function copyID() {
+        const id = document.getElementById('my-id').innerText;
+        navigator.clipboard.writeText(id);
+        alert("تم نسخ المعرف: " + id);
+    }
+
+    peer.on('connection', conn => {
+        document.getElementById('connection-panel').style.display = 'none'; // إخفاء لوحة الربط عند الاتصال
+        conn.on('data', data => {
+            if(data.type === 'question') {
+                document.getElementById('question-display').innerText = data.text;
+                document.querySelectorAll('.hex').forEach(el => el.classList.remove('highlight'));
+                document.getElementById('hex-' + data.index).classList.add('highlight');
+            }
+            if(data.type === 'answer') {
+                const el = document.getElementById('hex-' + data.index);
+                el.classList.remove('highlight');
+                el.className = 'hex active-' + data.team;
+            }
+        });
+    });
+</script>
+</body>
+</html>
