@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم - المضيف</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 10px; text-align: center; }
+        .card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; text-align: right; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn { padding: 10px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; margin: 2px; }
+        .btn-q { background: #3b82f6; width: 100%; }
+        .btn-orange { background: #ff8c00; }
+        .btn-green { background: #00a844; }
+        input { width: 80%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <div id="setup-panel">
+        <h2>الربط بالبث</h2>
+        <input type="text" id="target-id" placeholder="أدخل كود التلفاز">
+        <button onclick="connectManually()" style="padding:10px 20px;">ربط يدوي</button>
+    </div>
+
+    <div id="game-controls" style="display:none; margin-top:20px;">
+        </div>
+
+<script>
+    const letters = ['ق','ص','و','د','ب','ح','ي','ض','هـ','ث','م','ز','ش','ط','ك','أ','ر','س','ظ','ث','ج','ع','هـ','غ','ذ'];
+    let conn;
+    const peer = new Peer();
+
+    // التحقق من وجود ID في الرابط (الربط التلقائي عبر QR)
+    window.onload = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinId = urlParams.get('join');
+        if (joinId) {
+            document.getElementById('target-id').value = joinId;
+            setTimeout(() => connectManually(), 1000); // تأخير بسيط لضمان تهيئة PeerJS
+        }
+        renderControls();
+    };
+
+    function renderControls() {
+        const container = document.getElementById('game-controls');
+        letters.forEach((l, i) => {
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <strong>الحرف: ${l}</strong>
+                <button class="btn btn-q" onclick="sendMsg('question', 'سؤال الحرف ${l}', ${i})">طرح السؤال</button>
+                <div style="display:flex; gap:5px;">
+                    <button class="btn btn-orange" style="flex:1" onclick="sendMsg('answer', 'orange', ${i})">أزرق/برتقالي</button>
+                    <button class="btn btn-green" style="flex:1" onclick="sendMsg('answer', 'green', ${i})">أخضر</button>
+                </div>`;
+            container.appendChild(div);
+        });
+    }
+
+    function connectManually() {
+        const id = document.getElementById('target-id').value;
+        if(!id) return alert("يرجى إدخال الكود");
+        conn = peer.connect(id);
+        conn.on('open', () => {
+            document.getElementById('setup-panel').style.display = 'none';
+            document.getElementById('game-controls').style.display = 'block';
+            alert("تم الاتصال بنجاح!");
+        });
+    }
+
+    function sendMsg(type, payload, index) {
+        if(conn) {
+            if(type === 'question') conn.send({ type, text: payload, index });
+            if(type === 'answer') conn.send({ type, team: payload, index });
+        }
+    }
+</script>
+</body>
+</html>
